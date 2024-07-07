@@ -6,7 +6,7 @@ export type Generator = {
   description: string;
   production: number;
   count: number;
-  baseCost: number;
+  cost: number;
 };
 
 export type DreamInterface = {
@@ -14,6 +14,7 @@ export type DreamInterface = {
   yield: number;
   hibernationUnlocked: boolean;
   description: string;
+  hibernationTime: number;
 };
 
 export type Task = {
@@ -41,17 +42,17 @@ export const gameStateAtom = atom<GameState>({
   key: "gameState",
   default: {
     resources: {
-      money: 4,
+      money: 7,
       nirvana: 0,
     },
     time: new Date(4302, 3, 13),
     generators: [
       {
         name: "Vending Unit",
-        description: "Pills by the dozen.",
-        production: 1,
+        description: "Selling pills by the dozen.",
+        production: 0.5,
         count: 1,
-        baseCost: 1,
+        cost: 1,
       },
     ],
     dreamInterface: {
@@ -59,6 +60,7 @@ export const gameStateAtom = atom<GameState>({
       yield: 0.1,
       hibernationUnlocked: false,
       description: "A simple HCI into the dopamine machine's respite.",
+      hibernationTime: 1000,
     }
   },
 });

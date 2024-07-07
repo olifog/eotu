@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useChat } from "ai/react";
 import { useRecoilState, useRecoilValue } from "recoil";
-import { costFunction, gameStateAtom } from "@/game/GameState";
+import { gameStateAtom } from "@/game/GameState";
 import { generatorSelector, generatorsSelector } from "@/game/generators";
 import { taskSelector } from "@/game/task";
 import { moneySelector } from "@/game/resources";
@@ -12,20 +12,23 @@ export const Chat = () => {
   const onToolCall = (tool: any) => {
     console.log("Tool call", tool)
     const result = tool.toolCall.args;
+
     let resultString = "";
     if (typeof task !== "undefined") {
       resultString = "You are already working on " + task.description;
       return addToolResult({toolCallId: tool.toolCall.toolCallId, result: resultString})
     }
 
+    let cost: number;
+
     switch (tool.toolCall.toolName) {
       case "produce":
-        const cost = costFunction(gameState.generators[result.generator].count,gameState.generators[result.generator].baseCost);
+        cost = gameState.generators[result.generator].cost;
         if (money || 0 > cost) {
           setTask({
             name: "produce",
             description: "Producing a new " + gameState.generators[result.generator].name,
-            duration: result.productionDurationDays,
+            duration: result.duration,
             progress: 0,
             data: result,
           });
@@ -36,31 +39,52 @@ export const Chat = () => {
         }
         break;
       case "upgradeGenerator":
-        setTask({
-          name: "upgradeGenerator",
-          description: "Upgrading " + result.name,
-          duration: result.upgradeDurationDays,
-          progress: 0,
-          data: result,
-        });
+        cost = result.cost;
+        if (money || 0 > cost) {
+          setTask({
+            name: "upgradeGenerator",
+            description: "Upgrading " + gameState.generators[result.generator].name,
+            duration: result.duration,
+            progress: 0,
+            data: result,
+          });
+          setMoney((oldMoney) => (oldMoney || 0) - cost);
+          resultString = `You start upgrading ${result.name}.`;
+        } else {
+          resultString = `You don't have enough Timeshare to upgrade ${result.name}.`;
+        }
         break;
       case "createGenerator":
-        setTask({
-          name: "createGenerator",
-          description: "Creating a " + result.name,
-          duration: result.createDurationDays,
-          progress: 0,
-          data: result,
-        });
+        cost = result.baseCost
+        if (money || 0 > cost) {
+          setTask({
+            name: "createGenerator",
+            description: "Creating " + result.name,
+            duration: result.duration,
+            progress: 0,
+            data: result,
+          });
+          setMoney((oldMoney) => (oldMoney || 0) - cost);
+          resultString = `You start creating a new ${result.name}.`;
+        } else {
+          resultString = `You don't have enough Timeshare to create a new ${result.name}.`;
+        }
         break;
       case "upgradeDreamInterface":
-        setTask({
-          name: "upgradeDreamInterface",
-          description: "Upgrading Dream Interface",
-          duration: result.upgradeDurationDays,
-          progress: 0,
-          data: result,
-        });
+        cost = result.cost;
+        if (money || 0 > cost) {
+          setTask({
+            name: "upgradeDreamInterface",
+            description: "Upgrading Dream Interface",
+            duration: result.duration,
+            progress: 0,
+            data: result,
+          });
+          setMoney((oldMoney) => (oldMoney || 0) - cost);
+          resultString = `You start upgrading the Dream Interface.`;
+        } else {
+          resultString = `You don't have enough Timeshare to upgrade the Dream Interface.`;
+        }
         break;
       default:
         console.log("Unknown tool", tool);
@@ -76,6 +100,12 @@ export const Chat = () => {
   const [showCursor, setShowCursor] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isFocused) {
@@ -87,9 +117,9 @@ export const Chat = () => {
   }, [isFocused]);
 
   return (
-    <div className="w-full flex flex-col max-w-xl mx-auto text-white space-y-4">
-      <div className="w-full space-y-2 max-h-[60vh] overflow-y-scroll">
-        {(messages.slice(-6)).map((m) =>
+    <div className="w-full flex flex-col h-full max-w-xl mx-auto text-white space-y-4">
+      <div className="w-full space-y-2 flex-grow overflow-y-auto text-sm">
+        {messages.map((m) =>
           m.role === "user" ? (
             <div key={m.id} className="font-mono">
               <span className="text-gray-500">$</span> {m.content}
@@ -100,6 +130,7 @@ export const Chat = () => {
             </div>
           )
         )}
+        <div ref={messagesEndRef}></div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -108,7 +139,7 @@ export const Chat = () => {
             $
           </span>
           <input
-            className="w-full max-w-xl p-2 pl-[20px] bg-black focus:outline-none font-mono"
+            className="w-full max-w-xl p-2 pl-[20px] bg-black focus:outline-none font-mono text-sm"
             value={input}
             placeholder=""
             onChange={handleInputChange}

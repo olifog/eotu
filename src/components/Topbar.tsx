@@ -22,6 +22,8 @@ export const Topbar = () => {
 
   const [formattedMoney, shortUnit, longUnit] = formatMoney(money || 0);
 
+  const [formattedUpkeep, shortUpkeep, longUpkeep] = formatMoney(dreamInterface.upkeep)
+
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
@@ -31,13 +33,13 @@ export const Topbar = () => {
         if (!hibernating) {
           setPlaying(false);
         }
-      }, 1000);
+      }, dreamInterface.hibernationTime);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [playing, tick, hibernating, setPlaying]);
+  }, [playing, tick, hibernating, setPlaying, dreamInterface.hibernationTime]);
 
   const togglePlaying = () => {
     setPlaying(!playing);
@@ -86,7 +88,7 @@ export const Topbar = () => {
       <div className="w-full h-12 flex justify-end px-12 items-center">
         <button
           onClick={togglePlaying}
-          className="flex items-center justify-start w-32 "
+          className="flex items-center justify-start w-24 "
         >
           {playing ? (
             <>
@@ -101,11 +103,15 @@ export const Topbar = () => {
           )}
         </button>
         {dreamInterface.hibernationUnlocked && (
-          <div>
+          <div className="flex items-center">
             <Switch checked={hibernating} onCheckedChange={toggleHibernating} />
-            <span className="ml-2">Hibernate</span>
+            <span className="ml-2 mr-4">Hibernate</span>
           </div>
         )}
+        <div className="relative">
+          -{formattedUpkeep} <span className="text-gray-500">{shortUpkeep}</span> +{dreamInterface.yield} <span className="text-gray-500">Nirvana</span>
+          <div className="absolute text-xs text-gray-600">(+generators)</div>
+        </div>
       </div>
     </header>
   );

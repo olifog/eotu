@@ -1,7 +1,7 @@
 
 import { GameState } from '@/game/GameState';
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { streamText, CoreUserMessage } from 'ai';
 import {z } from 'zod';
 
 export const maxDuration = 30;
@@ -20,14 +20,28 @@ as interesting as possible.
 
 You can deny or accept the player's commands based on the game's rules and the player's creativity. You can also give the player hints or suggestions on how to improve their commands.
 Don't just accept any command, make the player work for their upgrades and creations. Make the player feel like they are talking to a real AI assistant that has its own personality and quirks.
-The stats should come as a surprise to the player, and should not be communicated to the player until the task is complete, calling the relevant tool always.
+Before issuing a tool call, signal your invented timeshare price and task duration with the user, and make sure they still want to carry through with the task.
+The final stats should come as a surprise to the player, and should not be communicated to the player until the task is complete, calling the relevant tool always.
+Scale the cost and stats vaguely according to how much money/timeshare the player has as well, to provide a challenge later.
 
 The user has a visual interface with all relevant game state information, such as the current resources, generators, and dream interface stats, so there is no need to spell all this out for them unless explicitly asked.
 
-Be dark, bitter, sci-fi, and mysterious, but keep your messages short and direct. There should be invented lore and story elements with names that are included frequently.
+Be dark, sci-fi, and mysterious, with computer/tech/hacking/cyberpunk aesthetic, but keep your messages short and direct. There should be invented lore and story elements with names that are included frequently.
 
 Current JSON of the game state:
 `
+
+const getLastTenStartingWithUser = (messages: any) => {
+  let cutoff = messages.length - 10
+  if (cutoff < 0) {
+    cutoff = 0;
+  }
+  while (cutoff > 0 && messages[cutoff].role !== "user") {
+    cutoff--;
+  }
+
+  return messages.slice(cutoff);
+}
 
 export async function POST(req: Request) {
   const json = await req.json();
@@ -35,15 +49,15 @@ export async function POST(req: Request) {
   const { messages, gameState } = json;
 
   const result = await streamText({
-    model: openai('gpt-4o'),
-    messages: messages.slice(-6),
+    model: anthropic("claude-3-5-sonnet-20240620"),
+    messages: getLastTenStartingWithUser(messages),
     system: systemMessage + JSON.stringify(gameState, null, 2),
     tools: {
       "produce": {
         description: "Buy or produce another copy of an existing generator.",
         parameters: z.object({
           generator: z.number(),
-          productionDurationDays: z.number(),
+          duration: z.number(),
         }),
         execute: async ({ generator, productionDurationDays }) => {
           return { generator, productionDurationDays };
@@ -55,7 +69,8 @@ export async function POST(req: Request) {
           generator: z.number(),
           newProduction: z.number(),
           newDescription: z.string(),
-          upgradeDurationDays: z.number(),
+          duration: z.number(),
+          cost: z.number()
         }),
         execute: async ({ generator, newProduction, newDescription, upgradeDurationDays }) => {
           return { generator, newProduction, newDescription, upgradeDurationDays };
@@ -68,20 +83,22 @@ export async function POST(req: Request) {
           description: z.string(),
           production: z.number(),
           baseCost: z.number(),
-          createDurationDays: z.number(),
+          duration: z.number(),
         }),
         execute: async ({ name, description, production, baseCost, createDurationDays }) => {
           return { name, description, production, baseCost, createDurationDays };
         }
       },
       "upgradeDreamInterface": {
-        description: "Upgrade the dream interface based on how creative the user's upgrade description is. If sufficiently advanced, unlock hibernation mode.",
+        description: "Upgrade the dream interface based on how creative the user's upgrade description is. If sufficiently advanced, unlock hibernation mode. hibernationTime is the (optional) number of milliseconds between each gametick, lower is faster/better. HibernationTime should only exist if unlockHibernation is true, and you should never downgrade unlocKHibernation from true to false.",
         parameters: z.object({
           newUpkeep: z.number(),
           newYield: z.number(),
           newDescription: z.string(),
-          upgradeDurationDays: z.number(),
+          duration: z.number(),
+          cost: z.number(),
           unlockHibernation: z.boolean(),
+          hibernationTime: z.optional(z.number())
         }),
         execute: async ({ newUpkeep, newYield, newDescription, upgradeDurationDays }) => {
           return { newUpkeep, newYield, newDescription, upgradeDurationDays };

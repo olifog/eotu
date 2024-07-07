@@ -23,6 +23,7 @@ export const tick = (gameState: GameState): GameState => {
         newGameState.generators[newGameState.task.data.generator] = {
           ...newGameState.generators[newGameState.task.data.generator],
           count: newGameState.generators[newGameState.task.data.generator].count + 1,
+          cost: newGameState.generators[newGameState.task.data.generator].cost * 1.1
         };
         break;
       case "upgradeGenerator":
@@ -40,7 +41,7 @@ export const tick = (gameState: GameState): GameState => {
             description: newGameState.task.data.description,
             production: newGameState.task.data.production,
             count: 1,
-            baseCost: newGameState.task.data.baseCost,
+            cost: newGameState.task.data.baseCost,
           },
         ];
         break;
@@ -51,6 +52,7 @@ export const tick = (gameState: GameState): GameState => {
           yield: newGameState.task.data.newYield,
           hibernationUnlocked: newGameState.task.data.unlockHibernation,
           description: newGameState.task.data.newDescription,
+          hibernationTime: newGameState.task.data.hibernationTime || newGameState.dreamInterface.hibernationTime
         };
         break;
       default:
